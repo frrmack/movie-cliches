@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from urllib import quote
 from urllib2 import urlopen
 from urlparse import urljoin
+import dateutil.parser
 import re
 import pickle
 import sys
@@ -19,8 +20,48 @@ class Script(object):
         Script.next_id += 1
 
         self.title = title
-        self.text = ""
-        self.url = ""
+        self.url = None
+        self.text_url = None
+        self.text = None
+        self.genres = []
+        self.writers = []
+        self.date = None
+
+    def get_writers(self, soup):
+        for a in soup.findAll('a', href=re.compile(r"^/writer\.php")):
+            self.writers.append( a.get_text() )
+
+    def get_genres(self, soup):
+        for a in soup.findAll('a', href=re.compile(r"^/genre/")):
+            self.genres.append( a.get_text() )
+
+    def get_date(self, soup):
+        date_str = soup.find(text="Script Date")
+        if date_str:
+            date_str = date_str.parent.next_sibling.strip(' :')
+            self.date = dateutil.parser.parse(date_str)
+        else:
+            print >> sys.stderr, 'No date found for %s' % self.title
+
+    def get_text_url(self, soup):
+        a = soup.find('a', href=re.compile(r"^/scripts/"))
+        if a:
+            self.text_url = urljoin(self.url, a['href'])
+        else:
+            print >> sys.stderr, 'No script found for %s' % self.title
+
+    def get_full_text(self):
+        if self.text_url:
+            g = Goose()
+            page = g.extract(self.text_url)
+            print >> sys.stderr, "Extracting text for %s" % page.title
+            self.text = page.cleaned_text
+        else:
+            print >> sys.stderr, 'No script found for %s' % self.title
+            
+        
+
+
 
 
 def connect(url):
@@ -28,6 +69,7 @@ def connect(url):
     page = urlopen(url)
     soup = BeautifulSoup(page)
     return soup
+
 
 def scrape_script_links(list_url):
     """ Scrape the list page for all scripts in IMSDb,
@@ -46,14 +88,28 @@ def scrape_script_links(list_url):
         scripts.append(script)
     return scripts
         
-def scrape_full_text_of_scripts(scripts):
-    """Extract the full text from the script's IMSDb page"""
 
-    for script in scripts:
-        g = Goose()
-        page = g.extract(script.url)
-        print >> sys.stderr, "Extracting %s" % page.title
-        script.text = page.cleaned_text
+def scrape_metadata(scripts):
+    """ For each script, get the writers, genres, 
+        date, and the url to the full text"""
+    n = len(scripts)
+    for i, script in enumerate(scripts):
+        soup = connect(script.url)
+        print >> sys.stderr, "Scraping %s (%i of %i)" % (soup.title.text, i, n)
+        script.get_writers(soup)
+        script.get_genres(soup)
+        script.get_date(soup)
+        script.get_text_url(soup)
+    return scripts
+        
+
+def scrape_all_full_text(scripts):
+    """Extract the full text from each script's IMSDb page"""
+
+    n = len(scripts)
+    for i, script in enumerate(scripts):
+        print >> sys.stderr, '%i of %i' % (i,n)
+        script.get_full_text()
     return scripts
         
 
@@ -61,12 +117,18 @@ def scrape_full_text_of_scripts(scripts):
 if __name__ == '__main__':
 
     ALL_SCRIPTS_URL = "http://www.imsdb.com/all%20scripts/"
+
     print >> sys.stderr, "Scraping script links"
     scripts = scrape_script_links(ALL_SCRIPTS_URL)
-    print >> sys.stderr, "Scraping full text for scripts"
-    scripts = scrape_full_text_of_scripts(scripts)
+
+    print >> sys.stderr, "Scraping metadata for scripts"
+    scripts = scrape_metadata(scripts)
+
+    print >> sys.stderr, "Extracting full text for each script"
+    scripts = scrape_all_full_text(scripts)
+
     print >> sys.stderr, "Saving data to disk"
-    with open("scripts.pkl", 'w') as datafile:
+    with open("data/scripts.pkl", 'w') as datafile:
         pickle.dump(scripts, datafile)
     print >> sys.stderr, "Done."
         
