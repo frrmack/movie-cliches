@@ -7,7 +7,7 @@ import dateutil.parser
 import re
 import pickle
 import sys
-
+from pymongo import MongoClient
 
 class Script(object):
     """A container to keep all scraped info about a script"""
@@ -23,19 +23,23 @@ class Script(object):
         self.url = None
         self.text_url = None
         self.text = None
-        self.genres = []
         self.writers = []
+        self.genres = []
         self.date = None
 
     def get_writers(self, soup):
+        self.writers = []
         for a in soup.findAll('a', href=re.compile(r"^/writer\.php")):
             self.writers.append( a.get_text() )
 
     def get_genres(self, soup):
-        for a in soup.findAll('a', href=re.compile(r"^/genre/")):
+        self.genres = []
+        details = soup.find('table', {'class': "script-details"})
+        for a in details.findAll('a', href=re.compile(r"^/genre/")):
             self.genres.append( a.get_text() )
 
     def get_date(self, soup):
+        self.date = None
         date_str = soup.find(text="Script Date")
         if date_str:
             date_str = date_str.parent.next_sibling.strip(' :')
@@ -59,9 +63,6 @@ class Script(object):
         else:
             print >> sys.stderr, 'No script found for %s' % self.title
             
-        
-
-
 
 
 def connect(url):
@@ -105,13 +106,18 @@ def scrape_metadata(scripts):
 
 def scrape_all_full_text(scripts):
     """Extract the full text from each script's IMSDb page"""
-
     n = len(scripts)
     for i, script in enumerate(scripts):
         print >> sys.stderr, '%i of %i' % (i,n)
         script.get_full_text()
     return scripts
         
+
+def record_in_mongo(scripts):
+    docs = [s.__dict__ for s in scripts]
+    db = MongoClient().movie_cliches
+    db.scripts.insert(docs)
+
 
 
 if __name__ == '__main__':
@@ -127,13 +133,11 @@ if __name__ == '__main__':
     print >> sys.stderr, "Extracting full text for each script"
     scripts = scrape_all_full_text(scripts)
 
-    print >> sys.stderr, "Saving data to disk"
-    with open("data/scripts.pkl", 'w') as datafile:
-        pickle.dump(scripts, datafile)
+    print >> sys.stderr, "Recording in database"
+    record_in_mongo(scripts)
     print >> sys.stderr, "Done."
-        
 
-
+    
 
 
 
