@@ -4,6 +4,7 @@ from collections import Counter
 import pickle
 import string
 import re
+import sys
 
 DATABASE_NAME = 'movie_cliches'
 COLLECTION_NAME = 'scripts'
@@ -14,6 +15,15 @@ def connect_to_db(db=DATABASE_NAME,
     """ Keep this modular in case in the future I want to
     use a remote db, etc."""
     return MongoClient()[db][coll]
+
+
+def save(obj, filename):
+    with open(filename, 'w') as picklefile:
+        pickle.dump(obj, picklefile)
+
+def load(filename):
+    with open(filename, 'r') as picklefile:
+        return pickle.load(picklefile)
 
 
 def is_number(sent):
@@ -66,28 +76,38 @@ def normalize_sentence_counts(counter, prior=4e-6):
     return counter
 
 
-def genre_counter(genre):
+def genre_counter(genre, pickle=True):
     db = connect_to_db()
     if genre == 'all':
         scripts = db.find()
     else:
         scripts = db.find({'genres':genre})
-    print '%i %s scripts found' % (scripts.count(), genre)
+    print >> sys.stderr, '%i %s scripts found' % (scripts.count(), genre)
     counter = count_sentences(scripts)
     counter = normalize_sentence_counts(counter)
+    if pickle:
+        print >> sys.stderr, 'saving %s counter...' % genre,
+        save(counter, 'counter_%s.pkl' % genre.lower())
+        print >> sys.stderr, 'done.'
     return counter
 
-
-def save(obj, filename):
-    with open(filename, 'w') as picklefile:
-        pickle.dump(obj, filename)
-
-def load(filename):
-    with open(filename, 'r') as picklefile:
-        return pickle.load(filename)
+def count_and_save_each_genre():
+    db = connect_to_db()
+    genres = db.distinct('genres')
+    for genre in genres:
+        ##############
+        if genre in ['all', 'Romance', 'Action']:
+            continue
+        #############
+        genre_counter(genre, pickle=True)
 
 
 if __name__ == '__main__':
+
+
+    count_and_save_each_genre()
+    sys.exit()
+
 
     # Count and save
 #     all_counter = genre_counter('all')
@@ -98,17 +118,46 @@ if __name__ == '__main__':
 #     save(romance_counter, 'counter_romance.pkl')
 
     # Load counts
-    all_counter = load('counter_all.pkl')
-    action_counter = load('counter_action.pkl')
-    romance_counter = load('counter_romance.pkl')
+#    all_counter = load('counter_all.pkl')
+#     action_counter = load('counter_action.pkl')
+#     romance_counter = load('counter_romance.pkl')
     
-    print '----------ALL----------'
-    for sent, count in all_counter.most_common(100):
-        if sent and len(sent.split()) > 1:
-            print count,':', sent
+#     print '----------ALL----------'
+#     for sent, count in all_counter.most_common(100):
+#         if sent and len(sent.split()) > 1:
+#             print count,':', sent
+
+
+    
+
+#     comedy_counter = genre_counter('Comedy')
+#     save(romance_counter, 'counter_comedy.pkl')
 
 
     min_freq_threshold = 3e-5
+
+#     print '----------ACTION----------'
+#     for sent, count in action_counter.most_common(100):
+#         if sent and len(sent.split()) > 1:
+#             print count,':', sent
+#     print '--------'
+#     ratios = [(count/all_counter[sent], sent) for sent, count in action_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
+#     ratios.sort(reverse=True)
+#     for ratio, sent in ratios[:100]:
+#         print '%f: %s' % (ratio, sent)
+#     print '---------------------------'
+
+#     print '----------ROMANCE----------'
+#     for sent, count in romance_counter.most_common(100):
+#         if sent and len(sent.split()) > 1:
+#             print count,':', sent
+#     print '--------'
+#     ratios = [(count/all_counter[sent], sent) for sent, count in romance_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
+#     ratios.sort(reverse=True)
+#     for ratio, sent in ratios[:100]:
+#         print '%f: %s' % (ratio, sent)
+#     print '---------------------------'
+
 
     print '----------ACTION----------'
     for sent, count in action_counter.most_common(100):
@@ -120,18 +169,6 @@ if __name__ == '__main__':
     for ratio, sent in ratios[:100]:
         print '%f: %s' % (ratio, sent)
     print '---------------------------'
-
-    print '----------ROMANCE----------'
-    for sent, count in romance_counter.most_common(100):
-        if sent and len(sent.split()) > 1:
-            print count,':', sent
-    print '--------'
-    ratios = [(count/all_counter[sent], sent) for sent, count in romance_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
-    ratios.sort(reverse=True)
-    for ratio, sent in ratios[:100]:
-        print '%f: %s' % (ratio, sent)
-    print '---------------------------'
-
 
 
             
