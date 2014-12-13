@@ -54,13 +54,13 @@ def count_sentences(scripts):
     return counter
                                       
 
-def normalize_sentence_counts(counter, prior=1e-5):
+def normalize_sentence_counts(counter, prior=4e-6):
 
-    print 'pseudo_count: %i' % pseudo_count
     if None in counter: del counter[None]
     if '' in counter: del counter['']
     total = float(sum(counter.values()))
     pseudo_count = max(round(prior*total), 1)
+    print 'pseudo_count: %i' % pseudo_count
     for key in counter:
         counter[key] = (counter[key]+pseudo_count)/(total+pseudo_count)
     return counter
@@ -78,32 +78,45 @@ def genre_counter(genre):
     return counter
 
 
+def save(obj, filename):
+    with open(filename, 'w') as picklefile:
+        pickle.dump(obj, filename)
+
+def load(filename):
+    with open(filename, 'r') as picklefile:
+        return pickle.load(filename)
+
+
 if __name__ == '__main__':
 
-    all_counter = genre_counter('all')
-    with open('counter_all.pkl', 'w') as counterfile:
-        pickle.dump(all_counter, counterfile)
+    # Count and save
+#     all_counter = genre_counter('all')
+#     save(all_counter, 'counter_all.pkl')
+#     action_counter = genre_counter('Action')
+#     save(action_counter, 'counter_action.pkl')
+#     romance_counter = genre_counter('Romance')
+#     save(romance_counter, 'counter_romance.pkl')
 
-    action_counter = genre_counter('Action')
-    with open('counter_action.pkl', 'w') as counterfile:
-        pickle.dump(action_counter, counterfile)
-        
-    romance_counter = genre_counter('Romance')
-    with open('counter_romance.pkl', 'w') as counterfile:
-        pickle.dump(romance_counter, counterfile)
+    # Load counts
+    all_counter = load('counter_all.pkl')
+    action_counter = load('counter_action.pkl')
+    romance_counter = load('counter_romance.pkl')
     
     print '----------ALL----------'
     for sent, count in all_counter.most_common(100):
         if sent and len(sent.split()) > 1:
             print count,':', sent
 
+
+    min_freq_threshold = 3e-5
+
     print '----------ACTION----------'
     for sent, count in action_counter.most_common(100):
         if sent and len(sent.split()) > 1:
             print count,':', sent
     print '--------'
-    ratios = [(count/all_counter[sent], sent) for sent, count in action_counter]
-    ratios.sort(reversed=True)
+    ratios = [(count/all_counter[sent], sent) for sent, count in action_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
+    ratios.sort(reverse=True)
     for ratio, sent in ratios[:100]:
         print '%f: %s' % (ratio, sent)
     print '---------------------------'
@@ -113,8 +126,8 @@ if __name__ == '__main__':
         if sent and len(sent.split()) > 1:
             print count,':', sent
     print '--------'
-    ratios = [(count/all_counter[sent], sent) for sent, count in romance_counter]
-    ratios.sort(reversed=True)
+    ratios = [(count/all_counter[sent], sent) for sent, count in romance_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
+    ratios.sort(reverse=True)
     for ratio, sent in ratios[:100]:
         print '%f: %s' % (ratio, sent)
     print '---------------------------'
