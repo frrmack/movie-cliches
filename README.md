@@ -7,6 +7,5 @@ I scraped ~1500 movie scripts to see which sentences are overused. Interestingly
 
 Also, it turns out Charlie Kaufman uses "I don't know", like, ALL the time. 19 times in Synecdoche, NY and 18 times in Eternal Sunshine of the Spotless Mind.
 
-Feel free to explore which movies tend to use these clichés to the max.
+[Feel free to explore which movies tend to use these clichés to the max](http://movie.cliches.irmaksirer.com).
 
-<iframe src="http://movie.cliches.irmaksirer.com"></iframe>
