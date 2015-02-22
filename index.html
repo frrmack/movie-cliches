@@ -43,7 +43,7 @@
 
       var infoboxX = 325,
          infoboxY = 200,
-         infoboxHeight =  300,
+         infoboxHeight =  305,
          infoboxWidth = 475;
          infoboxMargin = 15;
          infoboxHeaderSize = 30;
@@ -150,9 +150,19 @@
          var infobox = barSvg.append("g")
             .attr("class", "infobox")
 
+      
+         infobox.append("rect")
+            .attr("x", infoboxX)
+            .attr("y", infoboxY - infoboxHeaderSize)
+            .attr("rx", 17).attr("ry", 17)
+            .attr("height", infoboxHeight + infoboxHeaderSize)
+            .attr("width", infoboxWidth)
+            .style("fill", infoboxcolor);
+
          infobox.append("rect")
           .attr("x", infoboxX)
           .attr("y", infoboxY - infoboxHeaderSize)
+          .attr("rx", 10).attr("ry", 5)
           .attr("height", infoboxHeaderSize)
           .attr("width", infoboxWidth)
           .style("fill", sidecolor2);
@@ -164,23 +174,13 @@
           .style("fill", "white")
           .style("font-size", "22px");
       
-         infobox.append("rect")
-            .attr("x", infoboxX)
-            .attr("y", infoboxY)
-            .attr("height", infoboxHeight)
-            .attr("width", infoboxWidth)
-            .style("fill", infoboxcolor);
-
-
         var infoXScale = d3.scale.linear()
           .range([0, infoboxWidth-15])
           .domain([0, d3.max(movie_data, function (d) {return d.count;})]);
-
       
         var infoYScale = d3.scale.ordinal()
-           .rangeBands([infoboxY + infoboxMargin, infoboxY+infoboxHeight+infoboxMargin], 0.1)
+           .rangeBands([infoboxY + infoboxMargin, infoboxY+infoboxHeight+infoboxMargin-2], 0.1)
            .domain(movie_data.map(function(d) {return d.movie;}));
-
 
          var infobars = infobox.selectAll(".infobar")
             .data(movie_data)
@@ -191,7 +191,8 @@
 
          infobars.append("rect")
           .attr("x", infoboxX + 5)
-          .attr("y", function(d) {return infoYScale(d.movie) - infobarHeight/1.3;})
+          .attr("y", function(d) {return infoYScale(d.movie) - infobarHeight/1.5;})
+          .attr("rx", 10).attr("ry", 10)
           .attr("width", function(d) { return infoXScale(d.count);})
           .attr("height", infobarHeight)  
           .style("fill", sidecolor1);
@@ -199,6 +200,7 @@
           infobars.append("text")
            .attr("x", function(d) { return infoboxX + infoXScale(d.count); })
            .attr("y", function(d) { return infoYScale(d.movie); })
+           .attr("dy", "0.1em")
            .text(function(d) { return d.count; })
            .attr("text-anchor", "end")
            .style("fill", "white");
@@ -206,6 +208,7 @@
           infobars.append("text")
            .attr("x", infoboxX + 10)
            .attr("y", function(d) {return infoYScale(d.movie);})
+           .attr("dy", "0.1em")
            .text( function(d) {return d.movie;})
            .style("font-size", "16px")
            .style("fill", "darkbrown");
