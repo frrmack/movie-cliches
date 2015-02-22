@@ -9,3 +9,4 @@ Also, it turns out Charlie Kaufman uses "**I don't know**", like, ALL the time. 
 
 [Feel free to explore which movies tend to use these clichés to the max](http://movie.cliches.irmaksirer.com).
 
+[![Play with the interactive visualization](http://i.imgur.com/MOE9y1A.png)](http://movie.cliches.irmaksirer.com)
