@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <style type="text/css">
+      .x-axis path {
+      stroke:white;
+      fill:none;
+      }
+      .x-axis line {
+      fill: none;
+      stroke: none;
+      stroke-opacity:.8;
+      shape-rendering: crispEdges;
+      }
+      .bars rect {
+      fill-opacity:.9;
+      }
+      .title {
+      font-weight: bold;
+      }
+      #precise-value {
+      fill:white;
+      font-size: 12px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <script type="text/javascript">
+
+      var margin = {top: 50, bottom: 50, left:250, right: 40};
+      var width = 1100 - margin.left - margin.right;
+      var height = 900 - margin.top - margin.bottom;
+
+
+      var barcolor = "#83AF9B",
+         highlightcolor = "#FE4365",
+         infoboxcolor = "#F9CDAD",
+         sidecolor1 = "#C8C8A9",
+         sidecolor2 = "#FC9D9A";
+
+      var infoboxX = 325,
+         infoboxY = 200,
+         infoboxHeight =  300,
+         infoboxWidth = 475;
+         infoboxMargin = 15;
+         infoboxHeaderSize = 30;
+
+
+
+
+      (function(){
+
+
+      var xScale = d3.scale.linear().range([0, width]);
+      var yScale = d3.scale.ordinal().rangeBands([0, height], 1.8,0);
+
+      var numTicks = 3;
+      var xAxis = d3.svg.axis().scale(xScale)
+      .orient("top")
+      .tickSize((-height))
+      .ticks(numTicks);
+
+      var svg = d3.select("body").append("svg")
+      .attr("width", width+margin.left+margin.right)
+      .attr("height", height+margin.top+margin.bottom)
+      .attr("class", "base-svg");
+
+      var barSvg = svg.append("g")
+      .attr("transform", "translate("+margin.left+","+margin.top+")")
+      .attr("class", "bar-svg");
+
+      var x = barSvg.append("g")
+      .attr("class", "x-axis");
+
+      var url = "all.json";
+
+      d3.json(url, function(data) {
+
+      data.forEach( function(d) { d.freq =+ d.freq;});
+      
+      var xMax = d3.max(data, function(d) { return d.freq; }) + 0.2;
+      var xMin = 0;
+      xScale.domain([xMin, xMax]);
+      yScale.domain(data.map(function(d) { return d.sentence; }));
+
+      d3.select(".base-svg").append("text")
+      .attr("x", margin.left)
+      .attr("y", (margin.top)/2)
+      .attr("text-anchor", "start")
+      .text("Average occurrence of each sentence per movie")
+      .attr("class", "title");
+
+      var groups = barSvg.append("g").attr("class", "labels")
+      .selectAll("text")
+      .data(data)
+      .enter()
+      .append("g");
+
+      groups.append("text")
+       .attr("x", "0")
+       .attr("y", function(d) { return yScale(d.sentence); })
+      .text(function(d) { return d.sentence; })
+      .attr("text-anchor", "end")
+      .attr("dy", ".9em")
+      .attr("dx", "-.32em")
+      .attr("id", function(d,i) { return "label"+i; });
+
+      var bars = groups
+      .attr("class", "bars")
+      .append("rect")
+      .attr("width", function(d) { return xScale(d.freq); })
+      .attr("height", height/(data.length +2))
+      .style("fill", barcolor)
+      .attr("x", xScale(xMin))
+      .attr("y", function(d) { return yScale(d.sentence); })
+      .attr("id", function(d,i) { return "bar"+i; });
+
+      groups.append("text")
+      .attr("x", function(d) { return xScale(d.freq); })
+      .attr("y", function(d) { return yScale(d.sentence); })
+      .text(function(d) { return d.freq; })
+      .attr("text-anchor", "end")
+      .attr("dy", "1.2em")
+      .attr("dx", "-.32em")
+      .attr("id", "precise-value");
+
+
+      x.call(xAxis);
+      var grid = xScale.ticks(numTicks);
+      barSvg.append("g").attr("class", "grid")
+      .selectAll("line")
+      .data(grid, function(d) { return d; })
+      .enter().append("line")
+      .attr("y1", 0)
+      .attr("y2", height+margin.bottom)
+      .attr("x1", function(d) { return xScale(d); })
+      .attr("x2", function(d) { return xScale(d); })
+      .attr("stroke", "white");
+
+      
+      function drawInfoBox() {
+
+         d3.select(".infobox").remove()
+      
+         movie_data = d3.select(this).data()[0].movies;
+
+         var infobox = barSvg.append("g")
+            .attr("class", "infobox")
+
+         infobox.append("rect")
+          .attr("x", infoboxX)
+          .attr("y", infoboxY - infoboxHeaderSize)
+          .attr("height", infoboxHeaderSize)
+          .attr("width", infoboxWidth)
+          .style("fill", sidecolor2);
+
+         infobox.append("text")
+          .attr("x", infoboxX + 10)
+          .attr("y", infoboxY - infoboxHeaderSize + 5+ infoboxMargin)
+          .text("\"" + d3.select(this).data()[0].sentence + "\" appears most in...")
+          .style("fill", "white")
+          .style("font-size", "22px");
+      
+         infobox.append("rect")
+            .attr("x", infoboxX)
+            .attr("y", infoboxY)
+            .attr("height", infoboxHeight)
+            .attr("width", infoboxWidth)
+            .style("fill", infoboxcolor);
+
+
+        var infoXScale = d3.scale.linear()
+          .range([0, infoboxWidth-15])
+          .domain([0, d3.max(movie_data, function (d) {return d.count;})]);
+
+      
+        var infoYScale = d3.scale.ordinal()
+           .rangeBands([infoboxY + infoboxMargin, infoboxY+infoboxHeight+infoboxMargin], 0.1)
+           .domain(movie_data.map(function(d) {return d.movie;}));
+
+
+         var infobars = infobox.selectAll(".infobar")
+            .data(movie_data)
+            .enter().append("g")
+            .attr("class", "infobar")
+
+         var infobarHeight = infoboxHeight/(movie_data.length+2);
+
+         infobars.append("rect")
+          .attr("x", infoboxX + 5)
+          .attr("y", function(d) {return infoYScale(d.movie) - infobarHeight/1.3;})
+          .attr("width", function(d) { return infoXScale(d.count);})
+          .attr("height", infobarHeight)  
+          .style("fill", sidecolor1);
+
+          infobars.append("text")
+           .attr("x", function(d) { return infoboxX + infoXScale(d.count); })
+           .attr("y", function(d) { return infoYScale(d.movie); })
+           .text(function(d) { return d.count; })
+           .attr("text-anchor", "end")
+           .style("fill", "white");
+
+          infobars.append("text")
+           .attr("x", infoboxX + 10)
+           .attr("y", function(d) {return infoYScale(d.movie);})
+           .text( function(d) {return d.movie;})
+           .style("font-size", "16px")
+           .style("fill", "darkbrown");
+
+      }
+
+      drawInfoBox.call(bars[0][0]);
+      
+      bars
+      .on("mouseover", function() {
+         var currentGroup = d3.select(this.parentNode);
+         currentGroup.select("rect").style("fill", highlightcolor);
+         currentGroup.select("text").style("font-weight", "bold");
+         drawInfoBox.call(this);})
+      .on("mouseout", function() {
+         var currentGroup = d3.select(this.parentNode);
+         currentGroup.select("rect").style("fill", barcolor);
+         currentGroup.select("text").style("font-weight", "normal");
+      });
+
+
+      });
+      
+      })();
+
+    </script>
+  </body>
+
+</html>
+

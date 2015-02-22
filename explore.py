@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from textblob import TextBlob
-from collections import Counter
+from collections import Counter, defaultdict
+import json
 import pickle
 import string
 import re
@@ -54,14 +55,23 @@ def clean_sentence(sent):
 
 def count_sentences(scripts):
     counter = Counter()
+    sentence_to_movies = defaultdict(Counter)
+    tot_length, num_scripts = 0,0
     for i, script in enumerate(scripts):
         print '[%i] Processing %s' % (i, script['title'])
         if not script['text']:
             print '-- No text for %s' % script['title']
             continue
         blob = TextBlob(script['text'])
-        counter.update([clean_sentence(s) for s in blob.sentences])
-    return counter
+        sentences = [clean_sentence(s) for s in blob.sentences]
+        for sent in sentences:
+            sentence_to_movies[sent].update([script['title']])
+        print '-- %i sentences in %s' % (len(sentences), script['title'])
+        tot_length += len(sentences)
+        num_scripts += 1
+        counter.update(sentences)
+    print '%.1f sentences per script on average' % (1.*tot_length/num_scripts)
+    return counter, sentence_to_movies
                                       
 
 def normalize_sentence_counts(counter, prior=4e-6):
@@ -83,13 +93,14 @@ def genre_counter(genre, pickle=True):
     else:
         scripts = db.find({'genres':genre})
     print >> sys.stderr, '%i %s scripts found' % (scripts.count(), genre)
-    counter = count_sentences(scripts)
+    counter, sentence_to_movies = count_sentences(scripts)
     counter = normalize_sentence_counts(counter)
     if pickle:
         print >> sys.stderr, 'saving %s counter...' % genre,
         save(counter, 'counter_%s.pkl' % genre.lower())
+        save(sentence_to_movies, 'sent2mov_%s.pkl' % genre.lower())
         print >> sys.stderr, 'done.'
-    return counter
+    return counter, sentence_to_movies
 
 def count_and_save_each_genre():
     db = connect_to_db()
@@ -105,58 +116,61 @@ def count_and_save_each_genre():
 if __name__ == '__main__':
 
 
-    count_and_save_each_genre()
-    sys.exit()
+    # count_and_save_each_genre()
+    # sys.exit()
 
 
     # Count and save
-#     all_counter = genre_counter('all')
-#     save(all_counter, 'counter_all.pkl')
-#     action_counter = genre_counter('Action')
-#     save(action_counter, 'counter_action.pkl')
-#     romance_counter = genre_counter('Romance')
-#     save(romance_counter, 'counter_romance.pkl')
+    #all_counter, sent2mov = genre_counter('all')
+    # action_counter = genre_counter('Action')
+    #romance_counter = genre_counter('Romance')
 
     # Load counts
-#    all_counter = load('counter_all.pkl')
-#     action_counter = load('counter_action.pkl')
-#     romance_counter = load('counter_romance.pkl')
+    all_counter, sent2mov = load('counter_all.pkl'), load('sent2mov_all.pkl')
+    #action_counter = load('counter_action.pkl')
+    #romance_counter = load('counter_romance.pkl')
+    #comedy_counter = load('counter_comedy.pkl')
     
-#     print '----------ALL----------'
-#     for sent, count in all_counter.most_common(100):
-#         if sent and len(sent.split()) > 1:
-#             print count,':', sent
-
-
+    print '----------ALL----------'
+    data = []
+    for sent, count in all_counter.most_common(90):
+        if sent == "A beat" : continue  # A stop sentence (script language)
+        if sent and len(sent.split()) > 1:
+            print count*3000,':', sent
+            movie_data = [{"movie": mov, "count": ct} for mov, ct in sent2mov[sent].most_common(12)]
+            data.append({"sentence": sent,
+                          "freq": "%.2f" % (count*3000),
+                          "movies": movie_data })
+    with open("all.json", 'w') as jsonfile:
+        json.dump(data, jsonfile)
+    print 'Data written.'
+    sys.exit()        
     
-
-#     comedy_counter = genre_counter('Comedy')
-#     save(romance_counter, 'counter_comedy.pkl')
 
 
     min_freq_threshold = 3e-5
 
-#     print '----------ACTION----------'
-#     for sent, count in action_counter.most_common(100):
-#         if sent and len(sent.split()) > 1:
-#             print count,':', sent
-#     print '--------'
-#     ratios = [(count/all_counter[sent], sent) for sent, count in action_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
-#     ratios.sort(reverse=True)
-#     for ratio, sent in ratios[:100]:
-#         print '%f: %s' % (ratio, sent)
-#     print '---------------------------'
+    print '----------ACTION----------'
+    for sent, count in action_counter.most_common(100):
+        if sent and len(sent.split()) > 1:
+            print count,':', sent
+    print '--------'
+    ratios = [(count/all_counter[sent], sent) for sent, count in action_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
+    ratios.sort(reverse=True)
+    for ratio, sent in ratios[:100]:
+        print '%f: %s' % (ratio, sent)
+    print '---------------------------'
 
-#     print '----------ROMANCE----------'
-#     for sent, count in romance_counter.most_common(100):
-#         if sent and len(sent.split()) > 1:
-#             print count,':', sent
-#     print '--------'
-#     ratios = [(count/all_counter[sent], sent) for sent, count in romance_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
-#     ratios.sort(reverse=True)
-#     for ratio, sent in ratios[:100]:
-#         print '%f: %s' % (ratio, sent)
-#     print '---------------------------'
+    print '----------ROMANCE----------'
+    for sent, count in romance_counter.most_common(100):
+        if sent and len(sent.split()) > 1:
+            print count,':', sent
+    print '--------'
+    ratios = [(count/all_counter[sent], sent) for sent, count in romance_counter.iteritems() if len(sent.split()) > 1 and count > min_freq_threshold]
+    ratios.sort(reverse=True)
+    for ratio, sent in ratios[:100]:
+        print '%f: %s' % (ratio, sent)
+    print '---------------------------'
 
 
     print '----------ACTION----------'
@@ -172,7 +186,6 @@ if __name__ == '__main__':
 
 
             
-    
 
     
 
